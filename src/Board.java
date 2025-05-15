@@ -135,4 +135,8 @@ public class Board {
         Piece player = getPlayer();
         return player.isIntersecting(goal);
     }
+
+    public char[][] getMatrix(){
+        return matrix;
+    }
 }

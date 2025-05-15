@@ -1,8 +1,9 @@
 6 6
 11
+  K
 AAB..F
 ..BCDF
-GPPCDFK
+GPPCDF
 GH.III
 GHJ...
 LLJMM.
