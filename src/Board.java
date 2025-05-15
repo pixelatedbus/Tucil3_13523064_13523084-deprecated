@@ -22,6 +22,7 @@ public class Board {
                 matrix[i][j] = '.';
             }
         }
+        this.goal = new Coords(-1, -1);
     }
 
     public Board(Board board){
