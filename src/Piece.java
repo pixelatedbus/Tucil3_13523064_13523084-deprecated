@@ -1,24 +1,30 @@
 package src;
 
+import java.util.ArrayList;
+import java.util.List;
+
 public class Piece {
     private Character id;
-    private Coords[] position;
+    private List<Coords> position;
 
-    public Piece(Character id, Coords[] position) {
+    public Piece(char id) {
         this.id = id;
-        this.position = position;
+        this.position = new ArrayList<>();
     }
 
     public Character getId() {
         return id;
     }
 
-    public Coords[] getPosition() {
+    public List<Coords> getPosition() {
         return position;
     }
 
+    public void addCoord(Coords coord){ position.add(coord); }
+
     public Boolean isHorizontal() {
-        return position[0].getY() == position[1].getY();
+        if (position.size() < 2) return true;
+        return position.get(0).getX() == position.get(1).getX();
     }
 
     public void move(boolean forward){
@@ -41,6 +47,14 @@ public class Piece {
             }
         }
         return false;
+    }
+
+    public void debugPrint() {
+        System.out.print("Piece " + id + ": ");
+        for (Coords coord : position) {
+            System.out.print(coord.toString() + " ");
+        }
+        System.out.println();
     }
 }
 // "A:5:2;B:4:3" -> state
