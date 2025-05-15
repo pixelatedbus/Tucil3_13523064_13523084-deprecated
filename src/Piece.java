@@ -1,19 +1,23 @@
 package src;
+import java.util.ArrayList;
+import java.util.List;
 
 public class Piece {
-    private String id;
-    private Coords[] position;
+    private char id;
+    private List<Coords> position;
 
-    public Piece(String id, Coords[] position) {
+    public Piece(char id) {
         this.id = id;
-        this.position = position;
+        this.position = new ArrayList<>();
     }
 
-    public String getId() {
+    public char getId() {
         return id;
     }
 
-    public Coords[] getPosition() {
+    public void addCoord(Coords coord){ position.add(coord); }
+
+    public List<Coords> getPosition() {
         return position;
     }
 
