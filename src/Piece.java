@@ -1,15 +1,15 @@
 package src;
 
 public class Piece {
-    private String id;
+    private Character id;
     private Coords[] position;
 
-    public Piece(String id, Coords[] position) {
+    public Piece(Character id, Coords[] position) {
         this.id = id;
         this.position = position;
     }
 
-    public String getId() {
+    public Character getId() {
         return id;
     }
 
@@ -21,7 +21,26 @@ public class Piece {
         return position[0].getY() == position[1].getY();
     }
 
-    public Boolean isVertical() {
-        return position[0].getX() == position[1].getX();
+    public void move(boolean forward){
+        int mult = forward ? 1 : -1;
+        if (isHorizontal()) {
+            for (Coords coord : position) {
+                coord.addX(mult);
+            }
+        } else {
+            for (Coords coord : position) {
+                coord.addY(mult);
+            }
+        }
+    }
+
+    public boolean isIntersecting(Coords other) {
+        for (Coords coord : position) {
+            if (coord.isIntersecting(other)) {
+                return true;
+            }
+        }
+        return false;
     }
 }
+// "A:5:2;B:4:3" -> state
