@@ -10,6 +10,8 @@ public class Board {
     private HashMap<Character, Piece> pieces;
     private Coords goal;
     private char[][] matrix;
+    private String parentState;
+    private String latestMove;
 
     public Board(int row, int col){
         this.row = row;
@@ -23,13 +25,18 @@ public class Board {
             }
         }
         this.goal = new Coords(-1, -1);
+        this.parentState = "";
+        this.latestMove = "";
     }
 
     public Board(Board board){
         this.row = board.row;
         this.col = board.col;
         this.iteration = board.iteration;
-        this.pieces = new HashMap<>(board.pieces);
+        this.pieces = new HashMap<>();
+        for (var entry : board.pieces.entrySet()) {
+            this.pieces.put(entry.getKey(), new Piece(entry.getValue())); // pastikan Piece punya copy-constructor
+        }
         this.goal = new Coords(board.goal.getX(), board.goal.getY());
         this.matrix = new char[row][col];
         for (int i = 0; i < row; i++){
@@ -55,6 +62,20 @@ public class Board {
 
     public Piece getPlayer(){
         return pieces.get('P');
+    }
+
+    public void setParentState(String parentState){
+        this.parentState = parentState;
+    }
+    public String getParentState(){
+        return parentState;
+    }
+
+    public void setLatestMove(String latestMove){
+        this.latestMove = latestMove;
+    }
+    public String getLatestMove(){
+        return latestMove;
     }
 
     public String getStateKey(){
@@ -90,17 +111,34 @@ public class Board {
         }
     }
 
+    public void removePiece(char id){
+        for (int i = 0; i < row; i++){
+            for (int j = 0; j < col; j++){
+                if (matrix[i][j] == id){
+                    matrix[i][j] = '.';
+                }
+            }
+        }
+    }
+
     public boolean isValidMove(Character id, boolean forward){
         Piece piece = pieces.get(id);
-        if (piece == null){
-            return false;
-        }
+        if (piece == null) return false;
         int mult = forward ? 1 : -1;
-        for (Coords coord : piece.getPosition()){
-            int newX = coord.getX() + (piece.isHorizontal() ? mult : 0);
-            int newY = coord.getY() + (piece.isHorizontal() ? 0 : mult);
-            if (newX < 0 || newX >= row || newY < 0 || newY >= col || matrix[newX][newY] != '.'){
-                return false;
+
+        if (piece.isHorizontal()){
+            for (Coords coord : piece.getPosition()){
+                int newY = coord.getY() + mult;
+                if (newY < 0 || newY >= col || matrix[coord.getX()][newY] != '.' || matrix[coord.getX()][newY] != id){
+                    return false;
+                }
+            }
+        } else {
+            for (Coords coord : piece.getPosition()){
+                int newX = coord.getX() + mult;
+                if (newX < 0 || newX >= row || (matrix[newX][coord.getY()] != '.' && matrix[newX][coord.getY()] != id)){
+                    return false;
+                }
             }
         }
         return true;
@@ -108,23 +146,37 @@ public class Board {
 
     public List<Board> generatePossibleBoards(){
         List<Board> possibleBoards = new ArrayList<>();
-        for (Piece piece : pieces.values()){
-            for (Coords coord : piece.getPosition()){
-                if (isValidMove(piece.getId(), true)){
-                    Board newBoard = new Board(this);
-                    newBoard.iteration++;
-                    newBoard.updateBoard();
-                    newBoard.pieces.get(piece.getId()).move(true);
-                    newBoard.updateBoard();
-                    possibleBoards.add(newBoard);
+        HashMap<Character, Piece> tempPieces = new HashMap<>(this.pieces);
+        String stateKey = getStateKey();
+        for (Piece piece : tempPieces.values()){
+            if (isValidMove(piece.getId(), true)){
+                Board newBoard = new Board(this);
+                newBoard.iteration++;
+                newBoard.updateBoard();
+                Piece newPiece = newBoard.pieces.get(piece.getId());
+                newPiece.move(true);
+                newBoard.updateBoard();
+                possibleBoards.add(newBoard);
+                newBoard.setParentState(stateKey);
+                if (newPiece.isHorizontal()) {
+                    newBoard.setLatestMove("Move " + newPiece.getId() + " right");
+                } else {
+                    newBoard.setLatestMove("Move " + newPiece.getId() + " down");
                 }
-                if (isValidMove(piece.getId(), false)){
-                    Board newBoard = new Board(this);
-                    newBoard.iteration++;
-                    newBoard.updateBoard();
-                    newBoard.pieces.get(piece.getId()).move(false);
-                    newBoard.updateBoard();
-                    possibleBoards.add(newBoard);
+            }
+            if (isValidMove(piece.getId(), false)){
+                Board newBoard = new Board(this);
+                newBoard.iteration++;
+                newBoard.updateBoard();
+                Piece newPiece = newBoard.pieces.get(piece.getId());
+                newPiece.move(false);
+                newBoard.updateBoard();
+                possibleBoards.add(newBoard);
+                newBoard.setParentState(stateKey);
+                if (newPiece.isHorizontal()) {
+                    newBoard.setLatestMove("Move " + newPiece.getId() + " left");
+                } else {
+                    newBoard.setLatestMove("Move " + newPiece.getId() + " up");
                 }
             }
         }

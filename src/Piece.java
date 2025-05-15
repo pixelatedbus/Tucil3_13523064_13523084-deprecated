@@ -12,6 +12,14 @@ public class Piece {
         this.position = new ArrayList<>();
     }
 
+    public Piece(Piece piece) {
+        this.id = piece.id;
+        this.position = new ArrayList<>();
+        for (Coords coord : piece.position) {
+            this.position.add(new Coords(coord.getX(), coord.getY()));
+        }
+    }
+
     public Character getId() {
         return id;
     }
@@ -31,11 +39,11 @@ public class Piece {
         int mult = forward ? 1 : -1;
         if (isHorizontal()) {
             for (Coords coord : position) {
-                coord.addX(mult);
+                coord.addY(mult);
             }
         } else {
             for (Coords coord : position) {
-                coord.addY(mult);
+                coord.addX(mult);
             }
         }
     }
