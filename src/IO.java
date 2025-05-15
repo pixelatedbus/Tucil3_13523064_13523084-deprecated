@@ -22,45 +22,102 @@ public class IO {
                 allLines.add(line);
             }
 
-            int startingLine = 0;
+            int matrixStartRow = 0;
 
             if (allLines.size() > N) {
-                for (int i = 0; i < allLines.size(); i++) {
-                    if (allLines.get(i).contains("K")) {
-                        if (i == 0) {
-                            startingLine = 1;
-                        } else if (i >= allLines.size() - 1) {
-                            startingLine = allLines.size() - N;
-                        }
-                    }
+                String firstDataLine = allLines.get(0).trim();
+                if (firstDataLine.length() == 1 && firstDataLine.charAt(0) == 'K') {
+                    matrixStartRow = 1;
+                    int kCol = allLines.get(0).indexOf('K');
+                    board.setGoal(new Coords(-1, kCol));
                 }
             }
 
-            for (int i = 0; i < allLines.size(); i++) {
+            Coords kPosition = null;
+
+            for (int i = matrixStartRow; i < Math.min(N + matrixStartRow, allLines.size()); i++) {
+                int matrixRow = i - matrixStartRow;
+
                 String currentLine = allLines.get(i);
 
+                boolean hasLeadingK = false;
+                int firstNonSpaceIndex = -1;
+
                 for (int j = 0; j < currentLine.length(); j++) {
+                    if (currentLine.charAt(j) != ' ') {
+                        firstNonSpaceIndex = j;
+                        break;
+                    }
+                }
+
+                if (firstNonSpaceIndex != -1 && currentLine.charAt(firstNonSpaceIndex) == 'K') {
+                    kPosition = new Coords(matrixRow, -1);
+                    hasLeadingK = true;
+                }
+
+                int matrixCol = 0;
+                for (int j = 0; j < currentLine.length() && matrixCol < M; j++) {
                     char c = currentLine.charAt(j);
-                    if (c == '.') continue;
 
-                    int relativeI = i - startingLine;
-                    boolean insideMatrix = (relativeI >= 0 && relativeI < N && j < M);
+                    if (c == ' ') continue;
 
-                    if (c == 'K') {
-                        Coords coord = new Coords(relativeI, j);
-                        board.setGoal(coord);
-                    } else if (insideMatrix) {
-                        Coords coord = new Coords(relativeI, j);
-                        if (!board.getPieces().containsKey(c)) {
-                            Piece piece = new Piece(c);
-                            piece.addCoord(coord);
-                            board.addPiece(piece);
-                        } else {
-                            board.getPieces().get(c).addCoord(coord);
+                    if (c == 'K' && matrixCol >= M) {
+                        kPosition = new Coords(matrixRow, M);
+                        continue;
+                    }
+
+                    if (c == 'K' && hasLeadingK && j == firstNonSpaceIndex) {
+                        continue;
+                    }
+
+                    if (c == '.') {
+                        matrixCol++;
+                        continue;
+                    }
+
+                    if (c == 'K' && matrixCol < M) {
+                        kPosition = new Coords(matrixRow, matrixCol);
+                        matrixCol++;
+                        continue;
+                    }
+
+                    Coords coord = new Coords(matrixRow, matrixCol);
+                    if (!board.getPieces().containsKey(c)) {
+                        Piece piece = new Piece(c);
+                        piece.addCoord(coord);
+                        board.addPiece(piece);
+                    } else {
+                        board.getPieces().get(c).addCoord(coord);
+                    }
+
+                    matrixCol++;
+                }
+
+                if (currentLine.length() > matrixCol) {
+                    for (int j = matrixCol; j < currentLine.length(); j++) {
+                        if (currentLine.charAt(j) == 'K') {
+                            kPosition = new Coords(matrixRow, M);
+                            break;
                         }
                     }
                 }
             }
+
+            if (kPosition == null && matrixStartRow + N < allLines.size()) {
+                for (int i = matrixStartRow + N; i < allLines.size(); i++) {
+                    String belowLine = allLines.get(i);
+                    if (belowLine.contains("K")) {
+                        int kCol = belowLine.indexOf('K');
+                        kPosition = new Coords(N, kCol);
+                    }
+                }
+            }
+
+            if (kPosition != null) {
+                board.setGoal(kPosition);
+            }
+
+
             return board;
         } catch (IOException e) {
             System.out.println("Error: " + e.getMessage());
