@@ -191,4 +191,62 @@ public class Board {
     public char[][] getMatrix(){
         return matrix;
     }
+
+    public List<Coords> stepsToGoal(){
+        List<Coords> steps = new ArrayList<>();
+        Coords playerFirst = new Coords(getPlayer().getPosition().get(0));
+        Coords goal = getGoal();
+        // find all the steps to goal
+        while (!playerFirst.isIntersecting(goal)){
+            if (getPlayer().isHorizontal()){
+                if (playerFirst.getY() < goal.getY()){
+                    steps.add(new Coords(playerFirst.getX(), playerFirst.getY() + 1));
+                    playerFirst.addY(1);
+                } else {
+                    steps.add(new Coords(playerFirst.getX(), playerFirst.getY() - 1));
+                    playerFirst.addY(-1);
+                }
+            } else {
+                if (playerFirst.getX() < goal.getX()){
+                    steps.add(new Coords(playerFirst.getX() + 1, playerFirst.getY()));
+                    playerFirst.addX(1);
+                } else {
+                    steps.add(new Coords(playerFirst.getX() - 1, playerFirst.getY()));
+                    playerFirst.addX(-1);
+                }
+            }
+        }
+        return steps;
+    }
+
+    public List<Piece> getAllBlocking(){
+        List<Coords> blocking = stepsToGoal();
+        List<Piece> blockingPieces = new ArrayList<>();
+        updateBoard();
+        for (Coords coord : blocking){
+            // ignore if the coord is out of bounds
+            if (coord.getX() < 0 || coord.getX() >= row || coord.getY() < 0 || coord.getY() >= col){
+                continue;
+            }
+            // ignore if the coord is the same as the player
+            if (matrix[coord.getX()][coord.getY()] == 'P'){
+                continue;
+            }
+            if(matrix[coord.getX()][coord.getY()] != '.'){
+                char id = matrix[coord.getX()][coord.getY()];
+                Piece blockingPiece = new Piece(pieces.get(id));
+                if (!blockingPieces.contains(blockingPiece)){
+                    blockingPieces.add(blockingPiece);
+                }
+            }
+        }
+        return blockingPieces;
+    }
+//    public Character[] getAllBlocking(){
+//
+//    }
+
+//    public int dependencyCount(){
+//        // count the number of pieces tha
+//    }
 }

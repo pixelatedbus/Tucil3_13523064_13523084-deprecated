@@ -28,14 +28,16 @@ public class Piece {
         return position;
     }
 
-    public void addCoord(Coords coord){ position.add(coord); }
+    public void addCoord(Coords coord) {
+        position.add(coord);
+    }
 
     public Boolean isHorizontal() {
         if (position.size() < 2) return true;
         return position.get(0).getX() == position.get(1).getX();
     }
 
-    public void move(boolean forward){
+    public void move(boolean forward) {
         int mult = forward ? 1 : -1;
         if (isHorizontal()) {
             for (Coords coord : position) {
@@ -64,5 +66,22 @@ public class Piece {
         }
         System.out.println();
     }
+
+    @Override
+    public String toString() {
+        StringBuilder sb = new StringBuilder();
+        sb.append(id).append(":");
+        for (Coords coord : position) {
+            sb.append(coord.getX()).append(":").append(coord.getY()).append(";");
+        }
+        return sb.toString();
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        Piece piece = (Piece) o;
+        return id == piece.id;
+    }
 }
-// "A:5:2;B:4:3" -> state

@@ -6,6 +6,7 @@ import java.util.List;
 public class Main {
     public static void main(String[] args){
         Board board = IO.readInput("C:\\Users\\luthf\\Documents\\INSTITUT TEKNOLOGI BANDUNG\\SEMESTER 4\\Tucil3_13523064_13523084\\src\\tes.txt");
+        assert board != null;
         board.updateBoard();
         board.printBoard();
         List<Board> s = board.generatePossibleBoards();
@@ -14,6 +15,11 @@ public class Main {
             b.printBoard();
             System.out.println("Move: " + b.getLatestMove());
             System.out.println("Parent State: " + b.getParentState());
+            System.out.println("goal: " + b.getGoal().getX() + " " + b.getGoal().getY());
+            List<Piece> pieces = b.getAllBlocking();
+            for (Piece p : pieces) {
+                System.out.println("Blocking Piece: " + p.getId());
+            }
         }
     }
 }

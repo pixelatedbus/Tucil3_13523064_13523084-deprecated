@@ -117,7 +117,13 @@ public class IO {
                 board.setGoal(kPosition);
             }
 
-
+            // normalize goal position
+            if (board.getGoal().getX() == -1) {
+                board.getGoal().setX(0);
+            }
+            if (board.getGoal().getY() == -1) {
+                board.getGoal().setY(0);
+            }
             return board;
         } catch (IOException e) {
             System.out.println("Error: " + e.getMessage());
