@@ -9,11 +9,12 @@ public class Main {
         assert board != null;
         board.updateBoard();
         board.printBoard();
-        List<Character> stuck = board.getPiecesBlockingPiece(board.getPieces().get('P'));
-        for (Character c : stuck) {
-            System.out.print(c + " ");
-        }
-        System.out.println();
+        int cost = board.heuristicByRecursiveBlock();
+        System.out.println("Cost: " + cost);
+        cost = board.heuristicByMaxDepth();
+        System.out.println("Cost: " + cost);
+        board.updateBoard();
+        board.printBoard();
 //        List<Board> s = board.generatePossibleBoards();
 //        for (Board b : s) {
 //            System.out.println("Possible Board:");
