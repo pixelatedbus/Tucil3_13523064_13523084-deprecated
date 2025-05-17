@@ -194,7 +194,7 @@ public class Board {
 
     public List<Coords> stepsToGoal(){
         List<Coords> steps = new ArrayList<>();
-        Coords playerFirst = new Coords(getPlayer().getPosition().get(0));
+        Coords playerFirst = new Coords(getPlayer().getPosition().getFirst());
         Coords goal = getGoal();
         // find all the steps to goal
         while (!playerFirst.isIntersecting(goal)){
@@ -242,6 +242,83 @@ public class Board {
         }
         return blockingPieces;
     }
+
+    public boolean canMove(Piece piece){
+        Character self = piece.getId();
+        // check if the piece can move forward or backward
+        boolean canMoveForward = isValidMove(self, true);
+        boolean canMoveBackward = isValidMove(self, false);
+        return canMoveForward || canMoveBackward;
+    }
+
+    public List<Character> getPiecesBlockingPiece(Piece piece){
+        // get all the pieces that are blocking the given piece
+        List<Character> blockingPieces = new ArrayList<>();
+        if (canMove(piece)){
+            return blockingPieces;
+        }
+        if (piece.isHorizontal()){
+            for (Coords coord : piece.getPosition()){
+                int newY = coord.getY() + 1;
+                if (newY < col && matrix[coord.getX()][newY] != '.'){
+                    char id = matrix[coord.getX()][newY];
+                    if (id != piece.getId()){
+                        blockingPieces.add(id);
+                    }
+                }
+                newY = coord.getY() - 1;
+                if (newY >= 0 && matrix[coord.getX()][newY] != '.'){
+                    char id = matrix[coord.getX()][newY];
+                    if (id != piece.getId()){
+                        blockingPieces.add(id);
+                    }
+                }
+            }
+        } else {
+            for (Coords coord : piece.getPosition()){
+                int newX = coord.getX() + 1;
+                if (newX < row && matrix[newX][coord.getY()] != '.'){
+                    char id = matrix[newX][coord.getY()];
+                    if (id != piece.getId()){
+                        blockingPieces.add(id);
+                    }
+                }
+                newX = coord.getX() - 1;
+                if (newX >= 0 && matrix[newX][coord.getY()] != '.'){
+                    char id = matrix[newX][coord.getY()];
+                    if (id != piece.getId()){
+                        blockingPieces.add(id);
+                    }
+                }
+            }
+        }
+        return blockingPieces;
+    }
+
+    public List<Character> getPiecesBlockingPiece(Character id){
+        Piece piece = pieces.get(id);
+        if (piece == null) return new ArrayList<>();
+        return getPiecesBlockingPiece(piece);
+    }
+
+    public int heuristicByBlockCountAndDistance(){
+        List<Piece> blockingPieces = getAllBlocking();
+        int count = 0;
+        for (Piece piece : blockingPieces){
+            if (piece.getId() != 'P'){
+                count++;
+            }
+        }
+        Coords playerFirst = new Coords(getPlayer().getPosition().getFirst());
+        return count + (int) playerFirst.distanceTo(goal);
+    }
+
+//    public int getDependencyDepth(){
+//        list<Piece> blockingPieces = getAllBlocking();
+//        int depth = 0;
+//        return depth;
+//    }
+
 //    public Character[] getAllBlocking(){
 //
 //    }

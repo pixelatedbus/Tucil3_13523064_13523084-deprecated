@@ -9,18 +9,28 @@ public class Main {
         assert board != null;
         board.updateBoard();
         board.printBoard();
-        List<Board> s = board.generatePossibleBoards();
-        for (Board b : s) {
-            System.out.println("Possible Board:");
-            b.printBoard();
-            System.out.println("Move: " + b.getLatestMove());
-            System.out.println("Parent State: " + b.getParentState());
-            System.out.println("goal: " + b.getGoal().getX() + " " + b.getGoal().getY());
-            List<Piece> pieces = b.getAllBlocking();
-            for (Piece p : pieces) {
-                System.out.println("Blocking Piece: " + p.getId());
-            }
+        List<Character> stuck = board.getPiecesBlockingPiece(board.getPieces().get('P'));
+        for (Character c : stuck) {
+            System.out.print(c + " ");
         }
+        System.out.println();
+//        List<Board> s = board.generatePossibleBoards();
+//        for (Board b : s) {
+//            System.out.println("Possible Board:");
+//            b.printBoard();
+//            System.out.println("Move: " + b.getLatestMove());
+//            System.out.println("Parent State: " + b.getParentState());
+//            System.out.println("goal: " + b.getGoal().getX() + " " + b.getGoal().getY());
+//            List<Piece> pieces = b.getAllBlocking();
+//            for (Piece p : pieces) {
+//                List<Character> sus = b.getPiecesBlockingPiece(p);
+//                System.out.println("Blocking Piece: " + p.getId());
+//                for (Character c : sus) {
+//                    System.out.print(c + " ");
+//                }
+//                System.out.println();
+//            }
+//        }
     }
 }
 
