@@ -8,30 +8,25 @@ public class Main {
         Board board = IO.readInput("C:\\Users\\luthf\\Documents\\INSTITUT TEKNOLOGI BANDUNG\\SEMESTER 4\\Tucil3_13523064_13523084\\src\\tes.txt");
         assert board != null;
         board.updateBoard();
-        board.printBoard();
-        int cost = board.heuristicByRecursiveBlock();
-        System.out.println("Cost: " + cost);
-        cost = board.heuristicByMaxDepth();
-        System.out.println("Cost: " + cost);
-        board.updateBoard();
-        board.printBoard();
-//        List<Board> s = board.generatePossibleBoards();
+        List<Board> s = board.generatePossibleBoards();
 //        for (Board b : s) {
 //            System.out.println("Possible Board:");
 //            b.printBoard();
 //            System.out.println("Move: " + b.getLatestMove());
 //            System.out.println("Parent State: " + b.getParentState());
 //            System.out.println("goal: " + b.getGoal().getX() + " " + b.getGoal().getY());
-//            List<Piece> pieces = b.getAllBlocking();
-//            for (Piece p : pieces) {
-//                List<Character> sus = b.getPiecesBlockingPiece(p);
-//                System.out.println("Blocking Piece: " + p.getId());
-//                for (Character c : sus) {
-//                    System.out.print(c + " ");
-//                }
-//                System.out.println();
-//            }
 //        }
+        Board firstBoard = s.getFirst();
+        firstBoard.updateBoard();
+        firstBoard.printBoard();
+        s = firstBoard.generatePossibleBoards();
+        for (Board b : s) {
+            System.out.println("Possible Board:");
+            b.printBoard();
+            System.out.println("Move: " + b.getLatestMove());
+            System.out.println("Parent State: " + b.getParentState());
+            System.out.println("goal: " + b.getGoal().getX() + " " + b.getGoal().getY());
+        }
     }
 }
 
