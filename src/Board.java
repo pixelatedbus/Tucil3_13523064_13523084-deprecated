@@ -136,7 +136,8 @@ public class Board {
         if (piece.isHorizontal()){
             for (Coords coord : piece.getPosition()){
                 int newY = coord.getY() + mult;
-                if (newY < 0 || newY >= col || matrix[coord.getX()][newY] != '.' || matrix[coord.getX()][newY] != id){
+                if (newY < 0 || newY >= col || (matrix[coord.getX()][newY] != '.' && matrix[coord.getX()][newY] != id)){
+                    System.out.println("Invalid move for piece " + id + " at (" + coord.getX() + "," + coord.getY() + ")");
                     return false;
                 }
             }
@@ -144,6 +145,7 @@ public class Board {
             for (Coords coord : piece.getPosition()){
                 int newX = coord.getX() + mult;
                 if (newX < 0 || newX >= row || (matrix[newX][coord.getY()] != '.' && matrix[newX][coord.getY()] != id)){
+                    System.out.println("Invalid move for piece " + id + " at (" + coord.getX() + "," + coord.getY() + ")");
                     return false;
                 }
             }
