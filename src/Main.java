@@ -5,16 +5,19 @@ import java.util.List;
 
 public class Main {
     public static void main(String[] args){
-        Board board = IO.readInput("C:\\Users\\luthf\\Documents\\INSTITUT TEKNOLOGI BANDUNG\\SEMESTER 4\\Tucil3_13523064_13523084\\src\\tes.txt");
+        Board board = IO.readInput("C:\\Semester-4\\Stima\\Tucil\\Tucil3_13523064_13523084\\src\\tes.txt");
         assert board != null;
         board.updateBoard();
         board.printBoard();
-        int cost = board.heuristicByRecursiveBlock();
-        System.out.println("Cost: " + cost);
-        cost = board.heuristicByMaxDepth();
-        System.out.println("Cost: " + cost);
-        board.updateBoard();
-        board.printBoard();
+        Solver solver = new Solver();
+        solver.GBFSSolver(board);
+        solver.printVisited();
+//        int cost = board.heuristicByRecursiveBlock();
+//        System.out.println("Cost: " + cost);
+//        cost = board.heuristicByMaxDepth();
+//        System.out.println("Cost: " + cost);
+//        board.updateBoard();
+//        board.printBoard();
 //        List<Board> s = board.generatePossibleBoards();
 //        for (Board b : s) {
 //            System.out.println("Possible Board:");

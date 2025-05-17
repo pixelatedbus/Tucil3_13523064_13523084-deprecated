@@ -10,6 +10,7 @@ public class Board {
     private char[][] matrix;
     private String parentState;
     private String latestMove;
+    private int heuristicCost;
 
     public Board(int row, int col){
         this.row = row;
@@ -74,6 +75,14 @@ public class Board {
     }
     public String getLatestMove(){
         return latestMove;
+    }
+
+    public void setHeuristicCost(int heuristicCost) {
+        this.heuristicCost = heuristicCost;
+    }
+
+    public int getHeuristicCost() {
+        return heuristicCost;
     }
 
     public String getStateKey(){
