@@ -85,6 +85,10 @@ public class Board {
         return heuristicCost;
     }
 
+    public int getIteration(){
+        return iteration;
+    }
+
     public String getStateKey(){
         StringBuilder state = new StringBuilder();
         for (Piece piece : pieces.values()){

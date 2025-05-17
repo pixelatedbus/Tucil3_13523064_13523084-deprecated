@@ -124,10 +124,20 @@ public class IO {
             if (board.getGoal().getY() == -1) {
                 board.getGoal().setY(0);
             }
+            if(board.getGoal().getY() > M-1){
+                board.getGoal().setY(M-1);
+            }
+            if(board.getGoal().getX() > N-1){
+                board.getGoal().setX(N);
+            }
             return board;
         } catch (IOException e) {
             System.out.println("Error: " + e.getMessage());
         }
         return null;
+    }
+
+    public static void saveResult(List<Board> result){
+
     }
 }

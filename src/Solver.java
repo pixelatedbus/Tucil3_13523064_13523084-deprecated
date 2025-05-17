@@ -19,18 +19,24 @@ public class Solver {
         this.queue.add(queuedBoard);
     }
 
-    public void GBFSSolver(Board parentBoard){
-        parentBoard.setHeuristicCost(parentBoard.heuristicByRecursiveBlock());
+    public Board GameSolver(Board parentBoard, String algorithm){
+        int heuristic;
+        if(algorithm.equals("GBFS")){
+            heuristic = parentBoard.heuristicByRecursiveBlock();
+        } else if(algorithm.equals("UCS")){
+            heuristic = parentBoard.getIteration();
+        } else {
+            heuristic = parentBoard.heuristicByRecursiveBlock() + parentBoard.getIteration();
+        }
+        parentBoard.setHeuristicCost(heuristic);
         addQueue(parentBoard);
 
         while (!queue.isEmpty()){
             Board currentBoard = this.queue.poll();
-            System.out.println("Taken state: ");
-            System.out.println(" Taken Key: " + currentBoard.getStateKey());
             currentBoard.printBoard();
             if(currentBoard.isGoalState()){
                 addVisited(currentBoard);
-                break;
+                return currentBoard;
             }
 
             addVisited(currentBoard);
@@ -38,22 +44,48 @@ public class Solver {
             for(Board next : currentBoard.generatePossibleBoards()){
                 String key = next.getStateKey();
                 if(!this.visitedStates.containsKey(key)){
-                    next.setHeuristicCost(next.heuristicByRecursiveBlock());
-                    System.out.println("State: ");
-                    next.printBoard();
-                    System.out.println("Key: " + next.getStateKey());
-                    System.out.println("Cost: " + next.heuristicByRecursiveBlock());
+                    int childHeuristic;
+                    if(algorithm.equals("GBFS")){
+                        childHeuristic = parentBoard.heuristicByRecursiveBlock();
+                    } else if(algorithm.equals("UCS")){
+                        childHeuristic = parentBoard.getIteration();
+                    } else {
+                        childHeuristic = parentBoard.heuristicByRecursiveBlock() + parentBoard.getIteration();
+                    }
+                    next.setHeuristicCost(childHeuristic);
                     addQueue(next);
                 }
             }
         }
+
+        return null;
     }
 
-    public void printVisited() {
-        for (Map.Entry<String, Board> entry : visitedStates.entrySet()) {
-            System.out.println("Key: " + entry.getKey());
-            System.out.println("Board: ");
-            entry.getValue().printBoard();
+    public List<Board> getResultInOrder(Board goalBoard) {
+        List<Board> path = new ArrayList<>();
+
+
+        Board currentBoard = goalBoard;
+
+        Stack<Board> reversePath = new Stack<>();
+
+        while (currentBoard != null) {
+            reversePath.push(currentBoard);
+
+            if (currentBoard.getParentState().equals("")) {
+                break;
+            }
+
+            String parentKey = currentBoard.getParentState();
+            currentBoard = visitedStates.get(parentKey);
+
         }
+
+        while (!reversePath.isEmpty()) {
+            path.add(reversePath.pop());
+        }
+
+        return path;
     }
+
 }
