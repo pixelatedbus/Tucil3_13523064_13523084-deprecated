@@ -386,6 +386,30 @@ public class Board {
         return maxDepth;
     }
 
+    public void setMatrix(char[][] matrix){
+        this.matrix = matrix;
+    }
+
+    public void parsePieces(){
+        for (int i = 0; i < row; i++){
+            for (int j = 0; j < col; j++){
+                if(this.matrix[i][j] == '.'){
+                    continue;
+                }
+
+                char c = this.matrix[i][j];
+                Coords coord = new Coords(i, j);
+                if (!pieces.containsKey(c)) {
+                    Piece piece = new Piece(c);
+                    piece.addCoord(coord);
+                    addPiece(piece);
+                } else {
+                    getPieces().get(c).addCoord(coord);
+                }
+            }
+        }
+    }
+
 
 //    public int getDependencyDepth(){
 //        list<Piece> blockingPieces = getAllBlocking();

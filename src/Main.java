@@ -4,9 +4,17 @@ import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
 import javafx.application.Application;
 import javafx.scene.control.ComboBox;
+import javafx.scene.control.ScrollPane;
+import javafx.scene.control.ToggleButton;
+import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.GridPane;
+import javafx.scene.layout.FlowPane;
+import javafx.scene.layout.StackPane;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Rectangle;
+import javafx.scene.text.Text;
+import javafx.scene.text.Font;
+import javafx.scene.text.FontWeight;
 import javafx.stage.Stage;
 import javafx.stage.FileChooser;
 import javafx.scene.Scene;
@@ -15,9 +23,16 @@ import javafx.scene.layout.VBox;
 import javafx.scene.layout.HBox;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
+import javafx.scene.control.TextField;
+import javafx.scene.control.ToggleGroup;
+import javafx.scene.control.RadioButton;
+import javafx.scene.control.Tooltip;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.util.Duration;
+import javafx.scene.input.ClipboardContent;
+import javafx.scene.input.Dragboard;
+import javafx.scene.input.TransferMode;
 
 import java.io.File;
 import java.util.HashMap;
@@ -26,10 +41,30 @@ import java.util.Map;
 
 public class Main extends Application {
 
+    private StackPane previewPane;
+    private GridPane previewGrid;
     private Label fileLabel;
     private GridPane boardView;
     private Board boardToSolve;
     private final Map<Character, Color> colorMap = new HashMap<>();
+    private char[][] manualBoard;
+    private int manualRows = 6, manualCols = 6;
+    private char currentPiece = 'P';
+    private FlowPane piecesPalette;
+    private Map<Character, Boolean> pieceOnBoardMap = new HashMap<>();
+    private int[] finishPosition = null;
+    private static final char FINISH_MARKER = 'F';
+    private final Map<Character, StackPane> piecePreviews = new HashMap<>();
+    private char draggedPiece = 'P';
+    private int draggedPieceSize = 2;
+    private boolean draggedPieceHorizontal = true;
+
+    // Pool type constants
+    private static final int POOL_HORIZONTAL_2 = 0;
+    private static final int POOL_VERTICAL_2 = 1;
+    private static final int POOL_HORIZONTAL_3 = 2;
+    private static final int POOL_VERTICAL_3 = 3;
+    private int currentPool = POOL_HORIZONTAL_2;
 
     public static void main(String[] args) {
         launch(args);
@@ -38,56 +73,223 @@ public class Main extends Application {
     @Override
     public void start(Stage primaryStage) {
         colorMap.put('P', Color.RED);
+        colorMap.put(FINISH_MARKER, Color.GREEN);
+
+        for (char c = 'A'; c <= 'Z'; c++) {
+            pieceOnBoardMap.put(c, false);
+        }
+
         primaryStage.setTitle("Rush Hour Solver");
+
+        ScrollPane scrollRoot = new ScrollPane();
+        scrollRoot.setFitToWidth(true);
+        scrollRoot.setPannable(true);
 
         BorderPane root = new BorderPane();
         root.setPadding(new Insets(15));
+        root.setStyle("-fx-background-color: #f5f5f5;");
 
         VBox topSection = new VBox(10);
         topSection.setPadding(new Insets(10));
+        topSection.setStyle("-fx-background-color: white; -fx-border-color: #ddd; -fx-border-radius: 5; -fx-padding: 10;");
+
+        HBox modeSelector = new HBox(10);
+        modeSelector.setStyle("-fx-background-color: #eaeaea; -fx-padding: 8; -fx-border-radius: 5;");
+        ToggleGroup inputModeGroup = new ToggleGroup();
+        RadioButton fileMode = new RadioButton("Load From File");
+        RadioButton manualMode = new RadioButton("Manual Board Editor");
+        fileMode.setToggleGroup(inputModeGroup);
+        manualMode.setToggleGroup(inputModeGroup);
+        fileMode.setSelected(true);
+        fileMode.setStyle("-fx-font-weight: bold;");
+        manualMode.setStyle("-fx-font-weight: bold;");
+        modeSelector.getChildren().addAll(fileMode, manualMode);
+
         Button loadButton = new Button("Load Board File");
+        loadButton.setStyle("-fx-background-color: #4CAF50; -fx-text-fill: white; -fx-font-weight: bold;");
         fileLabel = new Label("No file loaded.");
+        fileLabel.setStyle("-fx-font-size: 12;");
+
+        TextField rowField = new TextField("6");
+        TextField colField = new TextField("6");
+        rowField.setPrefWidth(40);
+        colField.setPrefWidth(40);
+        rowField.setStyle("-fx-font-size: 12;");
+        colField.setStyle("-fx-font-size: 12;");
+        Button applySizeButton = new Button("Apply Size");
+        applySizeButton.setStyle("-fx-background-color: #2196F3; -fx-text-fill: white; -fx-font-weight: bold;");
+
+        HBox sizeEditor = new HBox(5, new Label("Rows:"), rowField, new Label("Cols:"), colField, applySizeButton);
+        sizeEditor.setVisible(false);
+        sizeEditor.setStyle("-fx-background-color: #eaeaea; -fx-padding: 8; -fx-border-radius: 5;");
+
+        // Pool toggle buttons
+        HBox poolControls = new HBox(10);
+        poolControls.setAlignment(Pos.CENTER_LEFT);
+        poolControls.setPadding(new Insets(5));
+        poolControls.setVisible(false);
+        poolControls.setStyle("-fx-background-color: #eaeaea; -fx-padding: 8; -fx-border-radius: 5;");
+
+        Label poolLabel = new Label("Piece Pool:");
+        poolLabel.setStyle("-fx-font-weight: bold;");
+
+        ToggleGroup poolToggleGroup = new ToggleGroup();
+
+        ToggleButton pool2H = new ToggleButton("2-Size Horizontal");
+        pool2H.setToggleGroup(poolToggleGroup);
+        pool2H.setSelected(true);
+        pool2H.setUserData(POOL_HORIZONTAL_2);
+
+        ToggleButton pool2V = new ToggleButton("2-Size Vertical");
+        pool2V.setToggleGroup(poolToggleGroup);
+        pool2V.setUserData(POOL_VERTICAL_2);
+
+        ToggleButton pool3H = new ToggleButton("3-Size Horizontal");
+        pool3H.setToggleGroup(poolToggleGroup);
+        pool3H.setUserData(POOL_HORIZONTAL_3);
+
+        ToggleButton pool3V = new ToggleButton("3-Size Vertical");
+        pool3V.setToggleGroup(poolToggleGroup);
+        pool3V.setUserData(POOL_VERTICAL_3);
+
+        poolControls.getChildren().addAll(poolLabel, pool2H, pool2V, pool3H, pool3V);
+
+        // Setup toggle pool event handlers
+        pool2H.setOnAction(e -> {
+            currentPool = POOL_HORIZONTAL_2;
+            updatePiecesPalette();
+        });
+
+        pool2V.setOnAction(e -> {
+            currentPool = POOL_VERTICAL_2;
+            updatePiecesPalette();
+        });
+
+        pool3H.setOnAction(e -> {
+            currentPool = POOL_HORIZONTAL_3;
+            updatePiecesPalette();
+        });
+
+        pool3V.setOnAction(e -> {
+            currentPool = POOL_VERTICAL_3;
+            updatePiecesPalette();
+        });
+
+        Button finishMarkerBtn = new Button("Place Finish Marker");
+        finishMarkerBtn.setStyle("-fx-background-color: #FF9800; -fx-text-fill: white; -fx-font-weight: bold;");
+        finishMarkerBtn.setTooltip(new Tooltip("Drag finish marker to the board"));
+        finishMarkerBtn.setVisible(false);
+
+        piecesPalette = new FlowPane(10, 10);
+        piecesPalette.setPadding(new Insets(10));
+        piecesPalette.setAlignment(Pos.CENTER_LEFT);
+        piecesPalette.setPrefHeight(120);
+        piecesPalette.setVisible(false);
+        piecesPalette.setStyle("-fx-background-color: white; -fx-border-color: #ddd; -fx-border-radius: 5;");
 
         loadButton.setOnAction(e -> loadBoardFile(primaryStage));
+        applySizeButton.setOnAction(e -> {
+            manualRows = Integer.parseInt(rowField.getText());
+            manualCols = Integer.parseInt(colField.getText());
+            manualBoard = new char[manualRows][manualCols];
+            for (int i = 0; i < manualRows; i++) for (int j = 0; j < manualCols; j++) manualBoard[i][j] = '.';
+            finishPosition = null;
+            // Reset all piece tracking when board size changes
+            for (char c : pieceOnBoardMap.keySet()) {
+                pieceOnBoardMap.put(c, false);
+            }
+            renderManualEditor();
+        });
 
-        topSection.getChildren().addAll(loadButton, fileLabel);
+        fileMode.setOnAction(e -> {
+            loadButton.setVisible(true);
+            fileLabel.setVisible(true);
+            sizeEditor.setVisible(false);
+            finishMarkerBtn.setVisible(false);
+            poolControls.setVisible(false);
+            piecesPalette.setVisible(false);
+            renderBoard(boardToSolve);
+        });
+
+        manualMode.setOnAction(e -> {
+            loadButton.setVisible(false);
+            fileLabel.setVisible(false);
+            sizeEditor.setVisible(true);
+            finishMarkerBtn.setVisible(true);
+            poolControls.setVisible(true);
+            piecesPalette.setVisible(true);
+            if (manualBoard == null) {
+                manualBoard = new char[manualRows][manualCols];
+                for (int i = 0; i < manualRows; i++) for (int j = 0; j < manualCols; j++) manualBoard[i][j] = '.';
+            }
+            updatePiecesPalette();
+            renderManualEditor();
+        });
+
+        HBox editorSection = new HBox(20);
+        editorSection.setAlignment(Pos.CENTER_LEFT);
+
+        VBox leftPanel = new VBox(10, finishMarkerBtn, piecesPalette);
+        leftPanel.setPadding(new Insets(10));
+
+        topSection.getChildren().addAll(modeSelector, loadButton, fileLabel, sizeEditor, poolControls, leftPanel);
 
         boardView = new GridPane();
         boardView.setHgap(2);
         boardView.setVgap(2);
         boardView.setAlignment(Pos.CENTER);
+        boardView.setStyle("-fx-background-color: white; -fx-border-color: #ddd; -fx-border-radius: 5; -fx-padding: 10;");
 
         HBox bottomSection = new HBox(10);
         bottomSection.setPadding(new Insets(10));
         bottomSection.setAlignment(Pos.CENTER_LEFT);
-
+        bottomSection.setStyle("-fx-background-color: white; -fx-border-color: #ddd; -fx-border-radius: 5;");
 
         ComboBox<String> algoSelector = new ComboBox<>();
         algoSelector.getItems().addAll("GBFS", "UCS", "A*");
         algoSelector.setValue("GBFS");
+        algoSelector.setStyle("-fx-font-size: 12;");
 
+        ComboBox<String> heuristicSelector = new ComboBox<>();
+        heuristicSelector.getItems().addAll("Recursive", "Max Depth");
+        heuristicSelector.setValue("Recursive");
+        heuristicSelector.setStyle("-fx-font-size: 12;");
 
         Button solveButton = new Button("Solve");
-
-
+        solveButton.setStyle("-fx-background-color: #4CAF50; -fx-text-fill: white; -fx-font-weight: bold;");
         Label algoStatus = new Label("Algorithm: GBFS");
+        Label heuristicStatus = new Label("Heuristic: Recursive");
+        algoStatus.setStyle("-fx-font-size: 12;");
+        heuristicStatus.setStyle("-fx-font-size: 12;");
 
-
-        algoSelector.setOnAction(e -> {
-            String selected = algoSelector.getValue();
-            algoStatus.setText("Algorithm: " + selected);
-        });
-
+        algoSelector.setOnAction(e -> algoStatus.setText("Algorithm: " + algoSelector.getValue()));
+        heuristicSelector.setOnAction(e -> heuristicStatus.setText("Heuristic: " + heuristicSelector.getValue()));
 
         solveButton.setOnAction(e -> {
             String selectedAlgo = algoSelector.getValue();
             algoStatus.setText("Solving with " + selectedAlgo + "...");
-            if (this.boardToSolve == null) {
-                algoStatus.setText("Please load a board first.");
-                return;
+            heuristicStatus.setText("Heuristic: " + heuristicSelector.getValue());
+
+            Board toSolve;
+            if (manualMode.isSelected()) {
+                toSolve = new Board(manualRows, manualCols);
+                toSolve.setMatrix(manualBoard);
+                toSolve.parsePieces();
+                if (finishPosition != null) {
+                    Coords finishCoord = new Coords(finishPosition[0], finishPosition[1]);
+                    toSolve.setGoal(finishCoord);
+                }
+                toSolve.updateBoard();
+            } else {
+                if (this.boardToSolve == null) {
+                    algoStatus.setText("Please load a board first.");
+                    return;
+                }
+                toSolve = this.boardToSolve;
             }
+
             Solver solver = new Solver();
-            Board goalBoard = solver.GameSolver(this.boardToSolve, selectedAlgo);
+            Board goalBoard = solver.GameSolver(toSolve, selectedAlgo);
 
             if (goalBoard == null) {
                 algoStatus.setText("No solution found.");
@@ -95,64 +297,148 @@ public class Main extends Application {
             }
 
             List<Board> steps = solver.getResultInOrder(goalBoard);
-
-            // Animate each step
             Timeline timeline = new Timeline();
             int delayMillis = 300;
-
             for (int i = 0; i < steps.size(); i++) {
                 Board boardStep = steps.get(i);
-                KeyFrame keyFrame = new KeyFrame(Duration.millis(i * delayMillis), event -> {
-                    renderBoard(boardStep);
-                });
+                KeyFrame keyFrame = new KeyFrame(Duration.millis(i * delayMillis), event -> renderBoard(boardStep));
                 timeline.getKeyFrames().add(keyFrame);
             }
-
             timeline.setOnFinished(ev -> algoStatus.setText("Solved in " + (steps.size() - 1) + " moves using " + selectedAlgo));
             timeline.play();
         });
 
-        bottomSection.getChildren().addAll(algoSelector, solveButton, algoStatus);
+        bottomSection.getChildren().addAll(algoSelector, heuristicSelector, solveButton, algoStatus, heuristicStatus);
 
         root.setTop(topSection);
         root.setCenter(boardView);
         root.setBottom(bottomSection);
 
-        Scene scene = new Scene(root, 600, 400);
+        scrollRoot.setContent(root);
+
+        Scene scene = new Scene(scrollRoot, 900, 700);
         primaryStage.setScene(scene);
         primaryStage.show();
+
+        createDraggableFinishMarker(finishMarkerBtn);
+    }
+
+    private void updatePiecesPalette() {
+        piecesPalette.getChildren().clear();
+        piecePreviews.clear();
+
+        int size = (currentPool == POOL_HORIZONTAL_2 || currentPool == POOL_VERTICAL_2) ? 2 : 3;
+        boolean isHorizontal = (currentPool == POOL_HORIZONTAL_2 || currentPool == POOL_HORIZONTAL_3);
+
+        for (char c = 'A'; c <= 'Z'; c++) {
+            createDraggablePiece(piecesPalette, c, size, isHorizontal);
+        }
+
+        // Update grayed-out status for pieces already on board
+        updatePiecePaletteAvailability();
+    }
+
+    private void updatePiecePaletteAvailability() {
+        // Gray out pieces that are already on the board
+        for (char c = 'A'; c <= 'Z'; c++) {
+            StackPane pieceContainer = piecePreviews.get(c);
+            if (pieceContainer != null) {
+                boolean isOnBoard = pieceOnBoardMap.getOrDefault(c, false);
+
+                // Apply visual state based on availability
+                pieceContainer.setOpacity(isOnBoard ? 0.4 : 1.0);
+                pieceContainer.setDisable(isOnBoard);
+
+                // Add a visual indicator that the piece is unavailable
+                if (isOnBoard) {
+                    for (int i = 0; i < pieceContainer.getChildren().size(); i++) {
+                        if (pieceContainer.getChildren().get(i) instanceof GridPane) {
+                            GridPane grid = (GridPane) pieceContainer.getChildren().get(i);
+                            for (int j = 0; j < grid.getChildren().size(); j++) {
+                                if (grid.getChildren().get(j) instanceof Rectangle) {
+                                    Rectangle rect = (Rectangle) grid.getChildren().get(j);
+                                    rect.setOpacity(0.5);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 
     private void loadBoardFile(Stage stage) {
         FileChooser fileChooser = new FileChooser();
         fileChooser.setTitle("Open Rush Hour Board File");
         fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("Text Files", "*.txt"));
-
         File selectedFile = fileChooser.showOpenDialog(stage);
         if (selectedFile != null) {
             fileLabel.setText("Loaded: " + selectedFile.getName());
-
-           this.boardToSolve = IO.readInput(selectedFile.getAbsolutePath());
-           assert boardToSolve != null;
-           this.boardToSolve.updateBoard();
-           renderBoard(this.boardToSolve);
+            this.boardToSolve = IO.readInput(selectedFile.getAbsolutePath());
+            assert boardToSolve != null;
+            this.boardToSolve.updateBoard();
+            renderBoard(this.boardToSolve);
         } else {
             fileLabel.setText("File loading cancelled.");
         }
     }
 
     private void renderBoard(Board board) {
+        if (board == null) return;
         boardView.getChildren().clear();
-
         char[][] matrix = board.getMatrix();
         int rows = matrix.length;
         int cols = matrix[0].length;
-
         for (int i = 0; i < rows; i++) {
             for (int j = 0; j < cols; j++) {
                 char c = matrix[i][j];
                 Rectangle cell = new Rectangle(40, 40);
                 cell.setStroke(Color.BLACK);
+                if (c == '.') {
+                    cell.setFill(Color.LIGHTGRAY);
+                } else {
+                    colorMap.putIfAbsent(c, Color.color(Math.random(), Math.random(), Math.random()));
+                    cell.setFill(colorMap.get(c));
+                }
+
+                StackPane cellPane = new StackPane(cell);
+
+                if (finishPosition != null && finishPosition[0] == i && finishPosition[1] == j) {
+                    Text finishText = new Text("F");
+                    finishText.setFont(Font.font("Arial", FontWeight.BOLD, 16));
+                    cellPane.getChildren().add(finishText);
+                }
+
+                boardView.add(cellPane, j, i);
+            }
+        }
+    }
+
+    private void renderManualEditor() {
+        boardView.getChildren().clear();
+
+        // Update piece tracking map based on current board state
+        for (char c = 'A'; c <= 'Z'; c++) {
+            pieceOnBoardMap.put(c, false);
+        }
+
+        for (int i = 0; i < manualRows; i++) {
+            for (int j = 0; j < manualCols; j++) {
+                char piece = manualBoard[i][j];
+                if (piece != '.' && piece != FINISH_MARKER) {
+                    pieceOnBoardMap.put(piece, true);
+                }
+            }
+        }
+
+        // Update piece palette to reflect current board state
+        updatePiecePaletteAvailability();
+
+        for (int i = 0; i < manualRows; i++) {
+            for (int j = 0; j < manualCols; j++) {
+                Rectangle cell = new Rectangle(40, 40);
+                cell.setStroke(Color.BLACK);
+                char c = manualBoard[i][j];
 
                 if (c == '.') {
                     cell.setFill(Color.LIGHTGRAY);
@@ -161,8 +447,225 @@ public class Main extends Application {
                     cell.setFill(colorMap.get(c));
                 }
 
-                boardView.add(cell, j, i);
+                StackPane cellPane = new StackPane(cell);
+
+                if (finishPosition != null && finishPosition[0] == i && finishPosition[1] == j) {
+                    Text finishText = new Text("F");
+                    finishText.setFont(Font.font("Arial", FontWeight.BOLD, 16));
+                    cellPane.getChildren().add(finishText);
+                }
+
+                final int fi = i, fj = j;
+
+                // Only add right-click handler for removing pieces
+                cell.setOnMouseClicked(event -> {
+                    if (event.getButton() == javafx.scene.input.MouseButton.SECONDARY) {
+                        removePieceAtPosition(fi, fj);
+                    }
+                });
+
+                // Add drag handlers
+                setupBoardCellDragHandlers(cellPane, fi, fj);
+                boardView.add(cellPane, j, i);
             }
+        }
+    }
+
+    private void createDraggablePiece(FlowPane palette, char pieceChar, int size, boolean isHorizontal) {
+        GridPane piecePreview = new GridPane();
+        piecePreview.setHgap(1);
+        piecePreview.setVgap(1);
+
+        Color pieceColor = colorMap.computeIfAbsent(pieceChar,
+                k -> Color.color(Math.random(), Math.random(), Math.random()));
+
+        int rows = isHorizontal ? 1 : size;
+        int cols = isHorizontal ? size : 1;
+
+        for (int i = 0; i < rows; i++) {
+            for (int j = 0; j < cols; j++) {
+                Rectangle cell = new Rectangle(30, 30);
+                cell.setFill(pieceColor);
+                if(pieceChar == 'P'){
+                    cell.setStroke(Color.BLACK);
+                    cell.setStrokeWidth(2.0);
+                } else {
+                    cell.setStroke(pieceColor.darker());
+                }
+                piecePreview.add(cell, j, i);
+            }
+        }
+
+        StackPane container = new StackPane(piecePreview);
+        container.setStyle("-fx-padding: 5; -fx-background-color: white; -fx-border-color: #ccc;");
+
+
+        container.setUserData(new PieceData(pieceChar, size, isHorizontal));
+
+        container.setOnDragDetected(e -> {
+            if (pieceOnBoardMap.getOrDefault(pieceChar, false)) {
+                return;
+            }
+
+            PieceData data = (PieceData) container.getUserData();
+            draggedPiece = data.piece;
+            draggedPieceSize = data.size;
+            draggedPieceHorizontal = data.isHorizontal;
+
+            Dragboard db = container.startDragAndDrop(TransferMode.COPY);
+            ClipboardContent content = new ClipboardContent();
+            content.putString(String.valueOf(draggedPiece));
+            db.setContent(content);
+            db.setDragView(container.snapshot(null, null));
+            e.consume();
+        });
+
+        palette.getChildren().add(container);
+        piecePreviews.put(pieceChar, container);
+    }
+
+    private void createDraggableFinishMarker(Button finishMarkerBtn) {
+        finishMarkerBtn.setOnDragDetected(e -> {
+            draggedPiece = FINISH_MARKER;
+            draggedPieceSize = 1;
+            draggedPieceHorizontal = true;
+
+            Dragboard db = finishMarkerBtn.startDragAndDrop(TransferMode.COPY);
+            ClipboardContent content = new ClipboardContent();
+            content.putString(String.valueOf(FINISH_MARKER));
+            db.setContent(content);
+
+
+            StackPane finishMarker = new StackPane();
+            Rectangle bg = new Rectangle(30, 30);
+            bg.setFill(Color.GREEN);
+            bg.setStroke(Color.BLACK);
+            Text text = new Text("F");
+            text.setFont(Font.font("Arial", FontWeight.BOLD, 14));
+            finishMarker.getChildren().addAll(bg, text);
+
+            db.setDragView(finishMarker.snapshot(null, null));
+            e.consume();
+        });
+    }
+
+    private void setupBoardCellDragHandlers(StackPane cellPane, int row, int col) {
+        cellPane.setOnDragOver(event -> {
+            if (event.getDragboard().hasString()) {
+                event.acceptTransferModes(TransferMode.COPY);
+            }
+            event.consume();
+        });
+
+        cellPane.setOnDragDropped(event -> {
+            Dragboard db = event.getDragboard();
+            if (db.hasString()) {
+                placePieceAtPosition(row, col, draggedPiece, draggedPieceSize, draggedPieceHorizontal);
+                event.setDropCompleted(true);
+            } else {
+                event.setDropCompleted(false);
+            }
+            event.consume();
+        });
+    }
+
+    private void placePieceAtPosition(int row, int col, char piece, int size, boolean horizontal) {
+        if (piece == FINISH_MARKER) {
+            finishPosition = new int[]{row, col};
+            renderManualEditor();
+            return;
+        }
+
+        // Remove existing pieces of same type
+        if (pieceOnBoardMap.getOrDefault(piece, false)) {
+            for (int i = 0; i < manualRows; i++) {
+                for (int j = 0; j < manualCols; j++) {
+                    if (manualBoard[i][j] == piece) {
+                        manualBoard[i][j] = '.';
+                    }
+                }
+            }
+            pieceOnBoardMap.put(piece, false);
+        }
+
+        int pieceRows = horizontal ? 1 : size;
+        int pieceCols = horizontal ? size : 1;
+
+        // Check bounds
+        if (row + pieceRows > manualRows || col + pieceCols > manualCols) {
+            System.out.println("Piece doesn't fit at this position");
+            return;
+        }
+
+        // Check if space is available
+        for (int i = 0; i < pieceRows; i++) {
+            for (int j = 0; j < pieceCols; j++) {
+                if (manualBoard[row + i][col + j] != '.' && manualBoard[row + i][col + j] != piece) {
+                    System.out.println("Space already occupied by another piece");
+                    return;
+                }
+            }
+        }
+
+        for (int i = 0; i < pieceRows; i++) {
+            for (int j = 0; j < pieceCols; j++) {
+                manualBoard[row + i][col + j] = piece;
+            }
+        }
+
+        pieceOnBoardMap.put(piece, true);
+        renderManualEditor();
+    }
+
+    private void removePieceAtPosition(int row, int col) {
+        char pieceToRemove = manualBoard[row][col];
+
+        if (pieceToRemove == FINISH_MARKER || (finishPosition != null && finishPosition[0] == row && finishPosition[1] == col)) {
+            finishPosition = null;
+            renderManualEditor();
+            return;
+        }
+
+        if (pieceToRemove == '.') {
+            return;
+        }
+
+        pieceOnBoardMap.put(pieceToRemove, false);
+
+        boolean[][] visited = new boolean[manualRows][manualCols];
+        removeConnectedPieces(row, col, pieceToRemove, visited);
+
+        renderManualEditor();
+    }
+
+    private void removeConnectedPieces(int row, int col, char pieceChar, boolean[][] visited) {
+        if (row < 0 || row >= manualRows || col < 0 || col >= manualCols) {
+            return;
+        }
+
+        if (visited[row][col] || manualBoard[row][col] != pieceChar) {
+            return;
+        }
+
+        visited[row][col] = true;
+        manualBoard[row][col] = '.';
+
+        removeConnectedPieces(row + 1, col, pieceChar, visited);
+        removeConnectedPieces(row - 1, col, pieceChar, visited);
+        removeConnectedPieces(row, col + 1, pieceChar, visited);
+        removeConnectedPieces(row, col - 1, pieceChar, visited);
+    }
+
+    // Helper class to store piece data for drag and drop
+    private static class PieceData {
+        public final char piece;
+        public final int size;
+        public final boolean isHorizontal;
+
+        public PieceData(char piece, int size, boolean isHorizontal) {
+            this.piece = piece;
+            this.size = size;
+            this.isHorizontal = isHorizontal;
         }
     }
 }
