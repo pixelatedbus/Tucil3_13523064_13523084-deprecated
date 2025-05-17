@@ -21,6 +21,7 @@ public class Solver {
 
     public Board GameSolver(Board parentBoard, String algorithm){
         int heuristic;
+        int visited = 0;
         if(algorithm.equals("GBFS")){
             heuristic = parentBoard.heuristicByRecursiveBlock();
         } else if(algorithm.equals("UCS")){
@@ -36,21 +37,23 @@ public class Solver {
             currentBoard.printBoard();
             if(currentBoard.isGoalState()){
                 addVisited(currentBoard);
+                System.out.println("Visited: " + visited);
                 return currentBoard;
             }
 
             addVisited(currentBoard);
+            visited++;
 
             for(Board next : currentBoard.generatePossibleBoards()){
                 String key = next.getStateKey();
                 if(!this.visitedStates.containsKey(key)){
                     int childHeuristic;
                     if(algorithm.equals("GBFS")){
-                        childHeuristic = parentBoard.heuristicByRecursiveBlock();
+                        childHeuristic = next.heuristicByRecursiveBlock();
                     } else if(algorithm.equals("UCS")){
-                        childHeuristic = parentBoard.getIteration();
+                        childHeuristic = next.getIteration();
                     } else {
-                        childHeuristic = parentBoard.heuristicByRecursiveBlock() + parentBoard.getIteration();
+                        childHeuristic = next.heuristicByRecursiveBlock() + next.getIteration();
                     }
                     next.setHeuristicCost(childHeuristic);
                     addQueue(next);

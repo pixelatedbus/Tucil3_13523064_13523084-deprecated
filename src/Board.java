@@ -354,7 +354,9 @@ public class Board {
                 }
             }
         }
-        return count;
+        Coords player = getPlayer().getPosition().getFirst();
+        Coords goal = getGoal();
+        return 10*count + (int) player.distanceTo(goal);
     }
 
     public int maxDepth(Piece piece, Set<Piece> visited){
