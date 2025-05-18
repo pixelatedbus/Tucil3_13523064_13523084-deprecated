@@ -385,7 +385,18 @@ public class Board {
                 maxDepth = Math.max(maxDepth, maxDepth(piece, visitedPieces));
             }
         }
-        return maxDepth;
+        return 10*maxDepth + (int) getPlayer().getPosition().getFirst().distanceTo(goal);
+    }
+
+    public int getHeuristicByType(String type){
+        if (type.equals("blockCount")){
+            return heuristicByBlockCountAndDistance();
+        } else if (type.equals("recursiveBlock")){
+            return heuristicByRecursiveBlock();
+        } else if (type.equals("maxDepth")){
+            return heuristicByMaxDepth();
+        }
+        return 0;
     }
 
     public void setMatrix(char[][] matrix){
