@@ -5,14 +5,20 @@ import java.util.*;
 public class Solver {
     private HashMap<String, Board> visitedStates;
     private PriorityQueue<Board> queue;
+    private int visited;
 
     public Solver(){
         this.visitedStates = new HashMap<>();
         this.queue = new PriorityQueue<>(Comparator.comparingInt(Board::getHeuristicCost));
+        this.visited = 0;
     }
 
     public void addVisited(Board visitedBoard){
         this.visitedStates.put(visitedBoard.getStateKey(), visitedBoard);
+    }
+
+    public int getVisited(){
+        return this.visited;
     }
 
     public void addQueue(Board queuedBoard){
@@ -21,7 +27,6 @@ public class Solver {
 
     public Board GameSolver(Board parentBoard, String algorithm){
         int heuristic;
-        int visited = 0;
         if(algorithm.equals("GBFS")){
             heuristic = parentBoard.heuristicByRecursiveBlock();
         } else if(algorithm.equals("UCS")){

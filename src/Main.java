@@ -6,7 +6,6 @@ import javafx.application.Application;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.ToggleButton;
-import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.StackPane;
@@ -35,12 +34,12 @@ import javafx.scene.input.Dragboard;
 import javafx.scene.input.TransferMode;
 
 import java.io.File;
+import java.time.Instant;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 public class Main extends Application {
-
     private StackPane previewPane;
     private GridPane previewGrid;
     private Label fileLabel;
@@ -49,17 +48,18 @@ public class Main extends Application {
     private final Map<Character, Color> colorMap = new HashMap<>();
     private char[][] manualBoard;
     private int manualRows = 6, manualCols = 6;
-    private char currentPiece = 'P';
     private FlowPane piecesPalette;
     private Map<Character, Boolean> pieceOnBoardMap = new HashMap<>();
     private int[] finishPosition = null;
-    private static final char FINISH_MARKER = 'F';
+    private static final char FINISH_MARKER = '!';
     private final Map<Character, StackPane> piecePreviews = new HashMap<>();
     private char draggedPiece = 'P';
     private int draggedPieceSize = 2;
     private boolean draggedPieceHorizontal = true;
+    private char dragSourcePiece = '.';
+    private int[] dragSourcePosition = null;
+    private boolean isDraggingFromBoard = false;
 
-    // Pool type constants
     private static final int POOL_HORIZONTAL_2 = 0;
     private static final int POOL_VERTICAL_2 = 1;
     private static final int POOL_HORIZONTAL_3 = 2;
@@ -154,7 +154,6 @@ public class Main extends Application {
 
         poolControls.getChildren().addAll(poolLabel, pool2H, pool2V, pool3H, pool3V);
 
-        // Setup toggle pool event handlers
         pool2H.setOnAction(e -> {
             currentPool = POOL_HORIZONTAL_2;
             updatePiecesPalette();
@@ -194,7 +193,6 @@ public class Main extends Application {
             manualBoard = new char[manualRows][manualCols];
             for (int i = 0; i < manualRows; i++) for (int j = 0; j < manualCols; j++) manualBoard[i][j] = '.';
             finishPosition = null;
-            // Reset all piece tracking when board size changes
             for (char c : pieceOnBoardMap.keySet()) {
                 pieceOnBoardMap.put(c, false);
             }
@@ -288,8 +286,21 @@ public class Main extends Application {
                 toSolve = this.boardToSolve;
             }
 
+            Instant startTime = Instant.now();
+
             Solver solver = new Solver();
             Board goalBoard = solver.GameSolver(toSolve, selectedAlgo);
+
+            java.time.Duration solvingTime = java.time.Duration.between(startTime, Instant.now());
+            long millis = solvingTime.toMillis();
+            String timeString;
+
+            if (millis < 1000) {
+                timeString = millis + " milliseconds";
+            } else {
+                double seconds = millis / 1000.0;
+                timeString = String.format("%.2f seconds", seconds);
+            }
 
             if (goalBoard == null) {
                 algoStatus.setText("No solution found.");
@@ -304,7 +315,11 @@ public class Main extends Application {
                 KeyFrame keyFrame = new KeyFrame(Duration.millis(i * delayMillis), event -> renderBoard(boardStep));
                 timeline.getKeyFrames().add(keyFrame);
             }
-            timeline.setOnFinished(ev -> algoStatus.setText("Solved in " + (steps.size() - 1) + " moves using " + selectedAlgo));
+            timeline.setOnFinished(ev -> {
+                String resultText = String.format("Solved in %d visited nodes using %s (Time: %s)",
+                        solver.getVisited(), selectedAlgo, timeString);
+                algoStatus.setText(resultText);
+            });
             timeline.play();
         });
 
@@ -334,22 +349,18 @@ public class Main extends Application {
             createDraggablePiece(piecesPalette, c, size, isHorizontal);
         }
 
-        // Update grayed-out status for pieces already on board
         updatePiecePaletteAvailability();
     }
 
     private void updatePiecePaletteAvailability() {
-        // Gray out pieces that are already on the board
         for (char c = 'A'; c <= 'Z'; c++) {
             StackPane pieceContainer = piecePreviews.get(c);
             if (pieceContainer != null) {
                 boolean isOnBoard = pieceOnBoardMap.getOrDefault(c, false);
 
-                // Apply visual state based on availability
                 pieceContainer.setOpacity(isOnBoard ? 0.4 : 1.0);
                 pieceContainer.setDisable(isOnBoard);
 
-                // Add a visual indicator that the piece is unavailable
                 if (isOnBoard) {
                     for (int i = 0; i < pieceContainer.getChildren().size(); i++) {
                         if (pieceContainer.getChildren().get(i) instanceof GridPane) {
@@ -357,7 +368,7 @@ public class Main extends Application {
                             for (int j = 0; j < grid.getChildren().size(); j++) {
                                 if (grid.getChildren().get(j) instanceof Rectangle) {
                                     Rectangle rect = (Rectangle) grid.getChildren().get(j);
-                                    rect.setOpacity(0.5);
+                                    rect.setOpacity(1.0);
                                 }
                             }
                         }
@@ -417,7 +428,6 @@ public class Main extends Application {
     private void renderManualEditor() {
         boardView.getChildren().clear();
 
-        // Update piece tracking map based on current board state
         for (char c = 'A'; c <= 'Z'; c++) {
             pieceOnBoardMap.put(c, false);
         }
@@ -431,7 +441,6 @@ public class Main extends Application {
             }
         }
 
-        // Update piece palette to reflect current board state
         updatePiecePaletteAvailability();
 
         for (int i = 0; i < manualRows; i++) {
@@ -457,15 +466,18 @@ public class Main extends Application {
 
                 final int fi = i, fj = j;
 
-                // Only add right-click handler for removing pieces
                 cell.setOnMouseClicked(event -> {
                     if (event.getButton() == javafx.scene.input.MouseButton.SECONDARY) {
                         removePieceAtPosition(fi, fj);
                     }
                 });
 
-                // Add drag handlers
                 setupBoardCellDragHandlers(cellPane, fi, fj);
+
+                if (c != '.' && c != FINISH_MARKER) {
+                    setupBoardPieceDragSource(cellPane, fi, fj, c);
+                }
+
                 boardView.add(cellPane, j, i);
             }
         }
@@ -540,7 +552,7 @@ public class Main extends Application {
             Rectangle bg = new Rectangle(30, 30);
             bg.setFill(Color.GREEN);
             bg.setStroke(Color.BLACK);
-            Text text = new Text("F");
+            Text text = new Text("!");
             text.setFont(Font.font("Arial", FontWeight.BOLD, 14));
             finishMarker.getChildren().addAll(bg, text);
 
@@ -552,31 +564,187 @@ public class Main extends Application {
     private void setupBoardCellDragHandlers(StackPane cellPane, int row, int col) {
         cellPane.setOnDragOver(event -> {
             if (event.getDragboard().hasString()) {
-                event.acceptTransferModes(TransferMode.COPY);
+                event.acceptTransferModes(TransferMode.ANY); // Accept both COPY and MOVE
             }
             event.consume();
         });
 
         cellPane.setOnDragDropped(event -> {
             Dragboard db = event.getDragboard();
+            boolean success = false;
+
             if (db.hasString()) {
-                placePieceAtPosition(row, col, draggedPiece, draggedPieceSize, draggedPieceHorizontal);
-                event.setDropCompleted(true);
+                if (isDraggingFromBoard) {
+                    success = movePieceOnBoard(row, col);
+                } else {
+                    // Handle placing new pieces from palette
+                    success = placePieceAtPosition(row, col, draggedPiece, draggedPieceSize, draggedPieceHorizontal);
+                }
+                event.setDropCompleted(success);
             } else {
                 event.setDropCompleted(false);
             }
+
+            isDraggingFromBoard = false;
+            dragSourcePiece = '.';
+            dragSourcePosition = null;
+
             event.consume();
         });
     }
 
-    private void placePieceAtPosition(int row, int col, char piece, int size, boolean horizontal) {
+    private void setupBoardPieceDragSource(StackPane cellPane, int row, int col, char pieceChar) {
+        cellPane.setOnDragDetected(e -> {
+            boolean isHorizontal = false;
+            int pieceSize = 1;
+
+            int horizontalSize = 1;
+            for (int j = col + 1; j < manualCols; j++) {
+                if (manualBoard[row][j] == pieceChar) {
+                    horizontalSize++;
+                } else {
+                    break;
+                }
+            }
+            for (int j = col - 1; j >= 0; j--) {
+                if (manualBoard[row][j] == pieceChar) {
+                    horizontalSize++;
+                } else {
+                    break;
+                }
+            }
+
+            int verticalSize = 1;
+            for (int i = row + 1; i < manualRows; i++) {
+                if (manualBoard[i][col] == pieceChar) {
+                    verticalSize++;
+                } else {
+                    break;
+                }
+            }
+            for (int i = row - 1; i >= 0; i--) {
+                if (manualBoard[i][col] == pieceChar) {
+                    verticalSize++;
+                } else {
+                    break;
+                }
+            }
+
+            if (horizontalSize > verticalSize) {
+                isHorizontal = true;
+                pieceSize = horizontalSize;
+            } else {
+                isHorizontal = false;
+                pieceSize = verticalSize;
+            }
+
+            int startRow = row;
+            int startCol = col;
+            if (isHorizontal) {
+                while (startCol > 0 && manualBoard[row][startCol - 1] == pieceChar) {
+                    startCol--;
+                }
+            } else {
+                while (startRow > 0 && manualBoard[startRow - 1][col] == pieceChar) {
+                    startRow--;
+                }
+            }
+
+            draggedPiece = pieceChar;
+            draggedPieceSize = pieceSize;
+            draggedPieceHorizontal = isHorizontal;
+            dragSourcePiece = pieceChar;
+            dragSourcePosition = new int[]{startRow, startCol};
+            isDraggingFromBoard = true;
+
+            Dragboard db = cellPane.startDragAndDrop(TransferMode.MOVE);
+            ClipboardContent content = new ClipboardContent();
+            content.putString(String.valueOf(pieceChar));
+            db.setContent(content);
+
+            GridPane piecePreview = new GridPane();
+            piecePreview.setHgap(1);
+            piecePreview.setVgap(1);
+
+            Color pieceColor = colorMap.get(pieceChar);
+            int previewRows = isHorizontal ? 1 : pieceSize;
+            int previewCols = isHorizontal ? pieceSize : 1;
+
+            for (int i = 0; i < previewRows; i++) {
+                for (int j = 0; j < previewCols; j++) {
+                    Rectangle cell = new Rectangle(30, 30);
+                    cell.setFill(pieceColor);
+                    cell.setStroke(pieceColor.darker());
+                    piecePreview.add(cell, j, i);
+                }
+            }
+
+            StackPane previewContainer = new StackPane(piecePreview);
+            db.setDragView(previewContainer.snapshot(null, null));
+
+            e.consume();
+        });
+    }
+
+    private boolean movePieceOnBoard(int targetRow, int targetCol) {
+        if (dragSourcePosition == null || dragSourcePiece == '.') {
+            return false;
+        }
+
+        int sourceRow = dragSourcePosition[0];
+        int sourceCol = dragSourcePosition[1];
+        char pieceToMove = dragSourcePiece;
+
+        if (sourceRow == targetRow && sourceCol == targetCol) {
+            return true;
+        }
+
+        for (int i = 0; i < manualRows; i++) {
+            for (int j = 0; j < manualCols; j++) {
+                if (manualBoard[i][j] == pieceToMove) {
+                    manualBoard[i][j] = '.';
+                }
+            }
+        }
+
+
+        boolean canPlace = true;
+        int pieceRows = draggedPieceHorizontal ? 1 : draggedPieceSize;
+        int pieceCols = draggedPieceHorizontal ? draggedPieceSize : 1;
+
+        if (targetRow + pieceRows > manualRows || targetCol + pieceCols > manualCols) {
+            placePieceAtPosition(sourceRow, sourceCol, pieceToMove, draggedPieceSize, draggedPieceHorizontal);
+            return false;
+        }
+
+        for (int i = 0; i < pieceRows; i++) {
+            for (int j = 0; j < pieceCols; j++) {
+                if (targetRow + i >= manualRows || targetCol + j >= manualCols ||
+                        (manualBoard[targetRow + i][targetCol + j] != '.' &&
+                                manualBoard[targetRow + i][targetCol + j] != pieceToMove)) {
+                    canPlace = false;
+                    break;
+                }
+            }
+            if (!canPlace) break;
+        }
+
+        if (canPlace) {
+            placePieceAtPosition(targetRow, targetCol, pieceToMove, draggedPieceSize, draggedPieceHorizontal);
+            return true;
+        } else {
+            placePieceAtPosition(sourceRow, sourceCol, pieceToMove, draggedPieceSize, draggedPieceHorizontal);
+            return false;
+        }
+    }
+
+    private boolean placePieceAtPosition(int row, int col, char piece, int size, boolean horizontal) {
         if (piece == FINISH_MARKER) {
             finishPosition = new int[]{row, col};
             renderManualEditor();
-            return;
+            return true;
         }
 
-        // Remove existing pieces of same type
         if (pieceOnBoardMap.getOrDefault(piece, false)) {
             for (int i = 0; i < manualRows; i++) {
                 for (int j = 0; j < manualCols; j++) {
@@ -591,18 +759,16 @@ public class Main extends Application {
         int pieceRows = horizontal ? 1 : size;
         int pieceCols = horizontal ? size : 1;
 
-        // Check bounds
         if (row + pieceRows > manualRows || col + pieceCols > manualCols) {
             System.out.println("Piece doesn't fit at this position");
-            return;
+            return false;
         }
 
-        // Check if space is available
         for (int i = 0; i < pieceRows; i++) {
             for (int j = 0; j < pieceCols; j++) {
                 if (manualBoard[row + i][col + j] != '.' && manualBoard[row + i][col + j] != piece) {
                     System.out.println("Space already occupied by another piece");
-                    return;
+                    return false;
                 }
             }
         }
@@ -615,6 +781,7 @@ public class Main extends Application {
 
         pieceOnBoardMap.put(piece, true);
         renderManualEditor();
+        return true;
     }
 
     private void removePieceAtPosition(int row, int col) {
@@ -656,7 +823,6 @@ public class Main extends Application {
         removeConnectedPieces(row, col - 1, pieceChar, visited);
     }
 
-    // Helper class to store piece data for drag and drop
     private static class PieceData {
         public final char piece;
         public final int size;
