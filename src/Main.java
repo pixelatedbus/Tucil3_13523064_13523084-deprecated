@@ -249,7 +249,7 @@ public class Main extends Application {
         algoSelector.setStyle("-fx-font-size: 12;");
 
         ComboBox<String> heuristicSelector = new ComboBox<>();
-        heuristicSelector.getItems().addAll("BlockCountDistance", "Recursive", "Max Depth");
+        heuristicSelector.getItems().addAll( "Recursive", "Max Depth", "BlockCountDistance");
         heuristicSelector.setValue("Recursive");
         heuristicSelector.setStyle("-fx-font-size: 12;");
 
