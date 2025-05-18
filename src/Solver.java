@@ -25,15 +25,16 @@ public class Solver {
         this.queue.add(queuedBoard);
     }
 
-    public Board GameSolver(Board parentBoard, String algorithm){
+    public Board GameSolver(Board parentBoard, String algorithm, String heuristicType){
         int heuristic;
         if(algorithm.equals("GBFS")){
-            heuristic = parentBoard.heuristicByBlockCountAndDistance();
+            heuristic = parentBoard.getHeuristicByType(heuristicType);
         } else if(algorithm.equals("UCS")){
             heuristic = parentBoard.getIteration();
+        } else if (algorithm.equals("A*")){
+            heuristic = parentBoard.getHeuristicByType(heuristicType) + parentBoard.getIteration();
         } else {
-//            heuristic = parentBoard.heuristicByBlockCountAndDistance() + parentBoard.getIteration();
-            return IDAStar(parentBoard);
+            return IDAStar(parentBoard, heuristicType);
         }
         parentBoard.setHeuristicCost(heuristic);
         addQueue(parentBoard);
@@ -44,6 +45,7 @@ public class Solver {
             if(currentBoard.isGoalState()){
                 addVisited(currentBoard);
                 System.out.println("Visited: " + visited);
+                System.out.println("Heuristic: " + heuristicType);
                 return currentBoard;
             }
             String currentKey = currentBoard.getStateKey();
@@ -56,15 +58,15 @@ public class Solver {
 
             for(Board next : currentBoard.generatePossibleBoards()){
                 String key = next.getStateKey();
-                if(!this.visitedStates.containsKey(key)){
+                if(!this.visitedStates.containsKey(key) || this.visitedStates.get(key).getHeuristicCost() > next.getHeuristicCost()){
                     int childHeuristic;
                     if(algorithm.equals("GBFS")){
-                        childHeuristic = next.heuristicByBlockCountAndDistance();
+                        childHeuristic = next.getHeuristicByType(heuristicType);
                     } else if(algorithm.equals("UCS")){
                         childHeuristic = next.getIteration();
                         System.out.println(childHeuristic);
                     } else {
-                        childHeuristic = next.heuristicByBlockCountAndDistance() + next.getIteration();
+                        childHeuristic = next.getHeuristicByType(heuristicType) + next.getIteration();
                     }
                     next.setHeuristicCost(childHeuristic);
                     addQueue(next);
@@ -102,51 +104,61 @@ public class Solver {
         return path;
     }
 
-    public Board IDAStar(Board parentBoard){
-        int visited = 0;
-        int heuristic = parentBoard.heuristicByRecursiveBlock();
-        int minHeuristic = Integer.MAX_VALUE;
-        parentBoard.setHeuristicCost(heuristic);
-        addQueue(parentBoard);
-        heuristic = 1;
-        while (true){
-            while (!queue.isEmpty()){
+    public Board IDAStar(Board parentBoard, String heuristicType) {
+        int threshold = parentBoard.getHeuristicByType(heuristicType);
+        parentBoard.setHeuristicCost(threshold);
+
+        while (true) {
+            int minHeuristic = Integer.MAX_VALUE;
+            this.queue.clear();
+            this.visitedStates.clear();
+
+            parentBoard.setHeuristicCost(threshold);
+            addQueue(parentBoard);
+
+            while (!queue.isEmpty()) {
                 Board currentBoard = this.queue.poll();
-//                currentBoard.printBoard();
-                if(currentBoard.isGoalState()){
-                    addVisited(currentBoard);
+
+                if (currentBoard.isGoalState()) {
                     return currentBoard;
                 }
+
                 String currentKey = currentBoard.getStateKey();
-                if(this.visitedStates.containsKey(currentKey) && this.visitedStates.get(currentKey).getHeuristicCost() <= currentBoard.getHeuristicCost()){
+                if (currentBoard.getHeuristicCost() > threshold) {
+                    minHeuristic = Math.min(minHeuristic, currentBoard.getHeuristicCost());
                     continue;
                 }
-                if(currentBoard.getHeuristicCost() > heuristic){
+
+                if (this.visitedStates.containsKey(currentKey) && this.visitedStates.get(currentKey).getHeuristicCost() <= currentBoard.getHeuristicCost()) {
                     continue;
                 }
 
                 addVisited(currentBoard);
-                visited++;
 
-                for(Board next : currentBoard.generatePossibleBoards()){
+                for (Board next : currentBoard.generatePossibleBoards()) {
                     String key = next.getStateKey();
-                    if(!this.visitedStates.containsKey(key)){
-                        int childHeuristic = next.heuristicByRecursiveBlock() + next.getIteration();
-                        if (childHeuristic < minHeuristic && childHeuristic > heuristic) {
-                            minHeuristic = childHeuristic;
+                    if (!this.visitedStates.containsKey(key)) {
+                        int h = next.getHeuristicByType(heuristicType);
+                        int f = h + next.getIteration();
+
+                        next.setHeuristicCost(f);
+                        if (f > threshold) {
+                            minHeuristic = Math.min(minHeuristic, f);
+                            continue;
                         }
-                        next.setHeuristicCost(childHeuristic);
+
                         addQueue(next);
                     }
                 }
             }
-            if(minHeuristic == heuristic){
-                return null;
+
+            if (minHeuristic == Integer.MAX_VALUE) {
+                return null;  // No solution found
             }
-            heuristic = minHeuristic;
-            System.out.println("New heuristic: " + heuristic);
-            addQueue(parentBoard);
-            //delay 1 second
+
+            threshold = minHeuristic;
+            System.out.println("New threshold: " + threshold);
         }
     }
+
 }

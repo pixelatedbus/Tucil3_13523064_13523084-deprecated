@@ -244,12 +244,12 @@ public class Main extends Application {
         bottomSection.setStyle("-fx-background-color: white; -fx-border-color: #ddd; -fx-border-radius: 5;");
 
         ComboBox<String> algoSelector = new ComboBox<>();
-        algoSelector.getItems().addAll("GBFS", "UCS", "A*");
+        algoSelector.getItems().addAll("GBFS", "UCS", "A*", "IDA*");
         algoSelector.setValue("GBFS");
         algoSelector.setStyle("-fx-font-size: 12;");
 
         ComboBox<String> heuristicSelector = new ComboBox<>();
-        heuristicSelector.getItems().addAll("Recursive", "Max Depth");
+        heuristicSelector.getItems().addAll("BlockCountDistance", "Recursive", "Max Depth");
         heuristicSelector.setValue("Recursive");
         heuristicSelector.setStyle("-fx-font-size: 12;");
 
@@ -267,6 +267,15 @@ public class Main extends Application {
             String selectedAlgo = algoSelector.getValue();
             algoStatus.setText("Solving with " + selectedAlgo + "...");
             heuristicStatus.setText("Heuristic: " + heuristicSelector.getValue());
+
+            String selectedHeuristic = heuristicSelector.getValue();
+            if (selectedHeuristic.equals("BlockCountDistance")) {
+                heuristicStatus.setText("Heuristic: BlockCountDistance");
+            } else if (selectedHeuristic.equals("Recursive")) {
+                heuristicStatus.setText("Heuristic: Recursive");
+            } else {
+                heuristicStatus.setText("Heuristic: Max Depth");
+            }
 
             Board toSolve;
             if (manualMode.isSelected()) {
@@ -289,7 +298,7 @@ public class Main extends Application {
             Instant startTime = Instant.now();
 
             Solver solver = new Solver();
-            Board goalBoard = solver.GameSolver(toSolve, selectedAlgo);
+            Board goalBoard = solver.GameSolver(toSolve, selectedAlgo, selectedHeuristic);
 
             java.time.Duration solvingTime = java.time.Duration.between(startTime, Instant.now());
             long millis = solvingTime.toMillis();
